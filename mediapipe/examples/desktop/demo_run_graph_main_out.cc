@@ -29,12 +29,14 @@
 // RendererSubgraph - LANDMARKS:hand_landmarks
 #include "mediapipe/calculators/util/landmarks_to_render_data_calculator.pb.h"
 #include "mediapipe/framework/formats/landmark.pb.h"
+#include "mediapipe/framework/formats/rect.pb.h"
 
 // input and output streams to be used/retrieved by calculators
 constexpr char kInputStream[] = "input_video";
 constexpr char kOutputStream[] = "output_video";
 constexpr char kLandmarksStream[] = "hand_landmarks";
 constexpr char kWindowName[] = "MediaPipe";
+constexpr char kLandmarksRectStream[] = "hand_rect";
 
 // cli inputs
 DEFINE_string(
@@ -93,6 +95,9 @@ DEFINE_string(output_video_path, "",
   // hand landmarks stream
   ASSIGN_OR_RETURN(mediapipe::OutputStreamPoller poller_landmark,
             graph.AddOutputStreamPoller(kLandmarksStream));
+  //hand landmarks_rect stream
+  ASSIGN_OR_RETURN(mediapipe::OutputStreamPoller poller_landmark_rect,
+            graph.AddOutputStreamPoller(kLandmarksRectStream));
 
   LOG(INFO) << "Start running the calculator graph.";
   MP_RETURN_IF_ERROR(graph.StartRun({}));
@@ -126,14 +131,21 @@ DEFINE_string(output_video_path, "",
     // Get the graph result packet, or stop if that fails.
     mediapipe::Packet packet;
     mediapipe::Packet landmark_packet;
+    //Addition
+    mediapipe::Packet landmark_rect_packet;
 
     //Polling the poller to get landmark packet
     if (!poller.Next(&packet)) break;
     if (!poller_landmark.Next(&landmark_packet)) break;
-
+    //Addition
+    if (!poller_landmark_rect.Next(&landmark_rect_packet)) break;
+      
     // Use packet.Get to recover values from packet
     auto& output_frame = packet.Get<mediapipe::ImageFrame>();
     auto& output_landmarks = landmark_packet.Get<std::vector<::mediapipe::NormalizedLandmark>>();
+    //Addition
+    auto& output_landmarks_rect = landmark_rect_packet.Get<::mediapipe::NormalizedRect>();
+
 
     // Convert back to opencv for display or saving.
     cv::Mat output_frame_mat = mediapipe::formats::MatView(&output_frame);
@@ -150,6 +162,13 @@ DEFINE_string(output_video_path, "",
     for (const ::mediapipe::NormalizedLandmark& landmark : output_landmarks) {
           std::cout << landmark.DebugString();
     }
+    //printout the hand rectangle
+	std::cout << "Rectangle landmarks: " << "\n";
+	std::cout << "x_center:" << output_landmarks_rect.x_center() << "\n";
+	std::cout << "y_center:" << output_landmarks_rect.y_center() << "\n";
+	std::cout << "height:" << output_landmarks_rect.height() << "\n";
+	std::cout << "width:" << output_landmarks_rect.width() << "\n";
+	std::cout << "rotation:" << output_landmarks_rect.rotation() << "\n";
   }
 
   LOG(INFO) << "Shutting down.";
